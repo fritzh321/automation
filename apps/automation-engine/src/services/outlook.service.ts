@@ -1,5 +1,6 @@
 import { forwardRef, Inject, Injectable } from '@nestjs/common';
 import axios from 'axios';
+import * as config from '../../config';
 import { AuthProvider, AuthProviderCallback, Client, Options } from '@microsoft/microsoft-graph-client';
 import { RuleNode } from '../types/node';
 import { ExpressionService } from './expression.service';
@@ -7,7 +8,14 @@ import { RulesService } from './rules.service';
 import { SupabaseService } from '@franz/sdk/supabase.service';
 
 @Injectable()
-export class OutlookService {
+constructor(
+		private expressionService: ExpressionService,
+		private supbaseService: SupabaseService,
+		@Inject(forwardRef(() => RulesService)) private rulesService: RulesService,
+	) {}
+
+	private microsoftGraphApiUrl = config.microsoftGraphApiUrl;
+	private outlookClientId = config.outlookClientId;
 	constructor(
 		private expressionService: ExpressionService,
 		private supbaseService: SupabaseService,
