@@ -23,69 +23,35 @@ export class NodeHandlerService {
 		private imageAiService: ImageAiService,
 	) {}
 
-	async customNodeHandler(node, input) {
-		const inputSelector = node.config?.input?.length ? node.config.input : '$context';
-		const outputSelector = node?.config?.outputKey?.length && node.config.outputKey;
-		if (node.kind === 'outlook.read') {
-			return this.outlookService.readMails(node.config, input);
-		}
-
-		if (node.kind === 'outlook.actions') {
+	private nodeHandlers = {
+		'outlook.read': (node, input) => this.outlookService.readMails(node.config, input),
+		'outlook.actions': (node, input) => {
 			if (node.config?.categories) {
 				return this.outlookService.updateMailCategory(input, node);
 			}
-
 			if (node.config?.folderId) {
 				return this.outlookService.moveMail(input, node);
 			}
+		},
+		'pdf.actions': (node, input) => this.pdfAiService.run(node, input),
+		'html.clean': (node, input) => this.htmlCleanService.clean(node.config?.input, input, node.config?.outputKey),
+		'html.md': (node, input) => this.htmlCleanService.md(node.config?.input, input, node.config?.outputKey),
+		'template': (node, input) => this.templateService.render(node.config?.input, input, 'template', node.config?.template),
+		'request': (node, input) => this.requestService.run(input, node.config?.outputKey, node.config),
+		'for.loop': (node, input) => this.forLoopService.run(node, input),
+		'llm': (node, input) => this.llmService.run(node, input),
+		'storage.path': (node, input) => this.storageService.getPublicUrl(node.config?.input, input, node.config?.outputKey),
+		'image.detect': (node, input) => this.imageAiService.detect(node, input),
+		'image.question': (node, input) => this.imageAiService.question(node, input),
+		'image.ocr': (node, input) => this.imageAiService.ocr(node, input)
+	};
+
+	async customNodeHandler(node, input) {
+		const handler = this.nodeHandlers[node.kind];
+		if (handler) {
+			return handler(node, input);
 		}
-
-		if (node.kind === 'pdf.actions') {
-			return this.pdfAiService.run(node, input);
-		}
-
-		if (node.kind === 'html.clean') {
-			return this.htmlCleanService.clean(inputSelector, input, outputSelector);
-		}
-
-		if (node.kind === 'html.md') {
-			return this.htmlCleanService.md(inputSelector, input, outputSelector);
-		}
-
-		if (node.kind === 'template') {
-			return this.templateService.render(node.config?.input, input, 'template', node.config?.template);
-		}
-
-		if (node.kind === 'request') {
-			return this.requestService.run(input, outputSelector, node.config);
-		}
-
-		if (node.kind === 'for.loop') {
-			return this.forLoopService.run(node, input);
-		}
-
-		if (node.kind === 'llm') {
-			return this.llmService.run(node, input);
-		}
-
-		if (node.kind === 'storage.path') {
-			return this.storageService.getPublicUrl(inputSelector, input, outputSelector);
-		}
-
-		if (node.kind === 'image.detect') {
-			return this.imageAiService.detect(node, input);
-		}
-
-		if (node.kind === 'image.question') {
-			return this.imageAiService.question(node, input);
-		}
-
-		if (node.kind === 'image.ocr') {
-			return this.imageAiService.ocr(node, input);
-		}
-
-		console.log('unkown node', node);
-
+		console.warn('Unknown node kind:', node.kind);
 		return input;
 	}
 }
