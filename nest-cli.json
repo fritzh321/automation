@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json.schemastore.org/nest-cli",
+  "collection": "@nestjs/schematics",
+  "sourceRoot": "apps/automation-engine/src",
+  "compilerOptions": {
+    "deleteOutDir": true,
+    "webpack": true,
+    "tsConfigPath": "apps/automation-engine/tsconfig.app.json"
+  },
+  "projects": {
+    "sdk": {
+      "type": "library",
+      "root": "libs/sdk",
+      "entryFile": "index",
+      "sourceRoot": "libs/sdk/src",
+      "compilerOptions": {
+        "tsConfigPath": "libs/sdk/tsconfig.lib.json"
+      }
+    },
+    "automation-engine": {
+      "type": "application",
+      "root": "apps/automation-engine",
+      "entryFile": "main",
+      "sourceRoot": "apps/automation-engine/src",
+      "compilerOptions": {
+        "tsConfigPath": "apps/automation-engine/tsconfig.app.json"
+      }
+    },
+    "grid": {
+      "type": "application",
+      "root": "apps/grid",
+      "entryFile": "main",
+      "sourceRoot": "apps/grid/src",
+      "compilerOptions": {
+        "tsConfigPath": "apps/grid/tsconfig.app.json"
+      }
+    }
+  },
+  "monorepo": true,
+  "root": "apps/automation-engine"
+}
