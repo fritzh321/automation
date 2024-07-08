@@ -10,17 +10,34 @@ export class WorkerConsumerService {
 		private rulesService: RulesService,
 		private templateService: TemplateService,
 		private workerService: WorkerService,
-		private supabaseService: SupabaseService,
+		private supabaseService: Supabase GUID ;
 	) {}
 
 	async runAutomationAsync(workerPayload) {
-		let automationResponse;
 		const { source, payload, id, meta, recordPayload } = workerPayload;
 
+		const logEntry = await this.createLogEntry(id);
+
+		try {
+			console.log('runAutomationAsync', id);
+
+			const result = await this.rulesService.run(source, payload, false, true);
+			const automationResponse = await this.handleAutomationResult(result, meta, recordPayload);
+
+			await this.updateLogEntry(logEntry.id, workerPayload, 1, result.performance, automationResponse);
+
+			return { automationId: id, payload, performance: result.performance, automationResponse };
+		} catch (e) {
+			await this.updateLogEntry(logEntry.id, workerPayload, 0, 0, e.toString());
+			throw e;
+		}
+	}
+
+	private async createLogEntry(automationId: string) {
 		const { data } = await this.supabaseService.supabase
 			.from('automation_logs')
 			.insert({
-				automation_id: id,
+				automation_id: automationId,
 				request: null,
 				status: 3,
 				performance: null,
@@ -28,45 +45,36 @@ export class WorkerConsumerService {
 			})
 			.select('id')
 			.single();
+		return data;
+	}
 
-		try {
-			console.log('runAutomationAsync', workerPayload.id);
+	private async handleAutomationResult(result: any, meta: any, recordPayload: any) {
+		let automationResponse;
+		const { performance, ...rest } = result;
 
-			const { performance, trace, ...rest } = await this.rulesService.run(source, payload, false, true);
-
-			if (meta?.template?.length > 0) {
-				automationResponse = await this.templateService.render(null, rest, null, meta?.template);
-			} else {
-				automationResponse = rest;
-			}
-
-			if (automationResponse && recordPayload) {
-				await this.workerService.sendToQueue({ ...recordPayload, data: automationResponse });
-			}
-
-			await this.supabaseService.supabase
-				.from('automation_logs')
-				.update({
-					automation_id: id,
-					request: workerPayload,
-					status: 1,
-					performance: performance,
-					response: automationResponse,
-				})
-				.eq('id', data.id);
-
-			return { automationId: id, payload, performance, automationResponse };
-		} catch (e) {
-			await this.supabaseService.supabase
-				.from('automation_logs')
-				.update({
-					automation_id: id,
-					request: workerPayload,
-					status: 0,
-					performance: 0,
-					response: e.toString(),
-				})
-				.eq('id', data.id);
+		if (meta?.template?.length > 0) {
+			automationResponse = await this.templateService.render(null, rest, null, meta?.template);
+		} else {
+			automationResponse = rest;
 		}
+
+		if (automationResponse && recordPayload) {
+			await this.workerService.sendToQueue({ ...recordPayload, data: automationResponse });
+		}
+
+		return automationResponse;
+	}
+
+	private async updateLogEntry(logId: string, requestPayload: any, status: number, performance: number, response: any) {
+		await this.supabaseService.supabase
+			.from('automation_logs')
+			.update({
+				automation_id: requestPayload.id,
+				request: requestPayload,
+				status,
+				performance,
+				response,
+			})
+			.eq('id', logId);
 	}
 }
