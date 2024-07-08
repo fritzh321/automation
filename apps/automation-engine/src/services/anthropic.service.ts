@@ -1,18 +1,23 @@
 import { Injectable } from '@nestjs/common';
 import Anthropic from '@anthropic-ai/sdk';
-import process from 'node:process';
+import { ConfigService } from '@nestjs/config';
+import { HttpException, HttpStatus } from '@nestjs/common';
 
 @Injectable()
 export class AnthropicService {
 	private anthropic: Anthropic;
 
-	constructor() {
+	constructor(private configService: ConfigService) {
+		const aiGateway = this.configService.get('AI_GATEWAY');
+		if (!aiGateway) {
+			throw new Error('AI_GATEWAY environment variable is not defined.');
+		}
 		this.anthropic = new Anthropic({
-			baseURL: `https://gateway.ai.cloudflare.com/v1/dfc2aec27f30abf7a5ce95bec375d3f8/${process.env.AI_GATEWAY}/anthropic`,
+			baseURL: `https://gateway.ai.cloudflare.com/v1/dfc2aec27f30abf7a5ce95bec375d3f8/${aiGateway}/anthropic`,
 		});
 	}
 
-	async generate(query: string, system: string, model: string) {
+	async generate(query: string, system: string, model: string): Promise<any> {
 		try {
 			const response = await this.anthropic.messages.create({
 				model: model,
@@ -28,12 +33,14 @@ export class AnthropicService {
 				top_p: 0.75,
 			});
 
-			const data = JSON.parse(response.content[0]['text']);
+			const data = JSON.parse(response.content?.[0].text);
 
 			return data;
 		} catch (e) {
-			console.log(e);
-			return e?.error?.message;
+			throw new HttpException(
+				'An error occurred while generating text with Anthropic.',
+				HttpStatus.INTERNAL_SERVER_ERROR
+			);
 		}
 	}
 }

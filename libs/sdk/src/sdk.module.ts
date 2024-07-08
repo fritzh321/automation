@@ -1,6 +1,6 @@
 import { Module } from '@nestjs/common';
 import { SdkService } from './sdk.service';
-import { SupabaseService } from '@franz/sdk/supabase.service';
+import { SupabaseService } from './supabase.service'; // Refactored import to be relative
 
 @Module({
 	providers: [SdkService, SupabaseService],
